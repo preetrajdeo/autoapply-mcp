@@ -8,7 +8,7 @@ let browser: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (!browser || !browser.isConnected()) {
-    browser = await chromium.launch({
+    const launchOptions: Parameters<typeof chromium.launch>[0] = {
       headless: true,
       args: [
         "--no-sandbox",
@@ -16,7 +16,12 @@ async function getBrowser(): Promise<Browser> {
         "--disable-dev-shm-usage",
         "--disable-gpu",
       ],
-    });
+    };
+    // On Railway/Linux, use the system Chromium installed via apt
+    if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) {
+      launchOptions.executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+    }
+    browser = await chromium.launch(launchOptions);
   }
   return browser;
 }
