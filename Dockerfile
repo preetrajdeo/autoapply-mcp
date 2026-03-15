@@ -2,13 +2,20 @@ FROM mcr.microsoft.com/playwright:v1.40.0-jammy
 
 WORKDIR /app
 
+# Install all deps (including devDeps for TypeScript build)
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
+
+# Copy source and build TypeScript
+COPY tsconfig.json ./
+COPY src/ ./src/
+RUN npm run build
+
+# Remove dev deps after build
+RUN npm prune --omit=dev
 
 # Install Playwright browser
 RUN npx playwright install chromium --with-deps
-
-COPY dist/ ./dist/
 
 # Persistent data volume for profiles
 RUN mkdir -p /data
