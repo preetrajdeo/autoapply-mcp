@@ -2,6 +2,7 @@ FROM mcr.microsoft.com/playwright:v1.40.0-jammy
 
 WORKDIR /app
 
+# bust cache: 2
 # Install all deps (including devDeps for TypeScript build)
 COPY package*.json ./
 RUN npm ci
