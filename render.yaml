@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: autoapply-mcp
+    runtime: docker
+    plan: free
+    branch: main
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 3000
