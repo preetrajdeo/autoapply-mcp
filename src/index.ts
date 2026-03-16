@@ -17,9 +17,10 @@ import {
 } from "./tools/job-application.js";
 
 import {
-  registerSchema,       register,
-  saveProfileSchema,    saveUserProfile,
-  getProfileSchema,     getUserProfile,
+  registerSchema,           register,
+  saveProfileSchema,        saveUserProfile,
+  getProfileSchema,         getUserProfile,
+  saveFieldMappingSchema,   saveFieldMapping,
 } from "./tools/profile.js";
 
 // ── MCP Server ────────────────────────────────────────────────────────────────
@@ -58,6 +59,19 @@ function createMcpServer(): McpServer {
     getProfileSchema.shape,
     async (input) => {
       const result = await getUserProfile(input as any);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "save_field_mapping",
+    "Teach AutoApply how to answer a recurring question. " +
+    "Provide the label pattern (partial match is fine) and the answer to always use. " +
+    "Example: pattern='located in san francisco', value='Yes'. " +
+    "Next time fill_known_fields sees that label, it fills it automatically.",
+    saveFieldMappingSchema.shape,
+    async (input) => {
+      const result = await saveFieldMapping(input as any);
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     }
   );

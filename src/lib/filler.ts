@@ -25,6 +25,7 @@ export interface Profile {
   };
   education?: Array<{ degree?: string; institution?: string }>;
   salary?: { desiredMin?: string };
+  custom_mappings?: Array<{ pattern: string; value: string }>;
 }
 
 export interface FillResult {
@@ -96,6 +97,18 @@ export async function fillForm(page: Page, profile: Profile): Promise<FillResult
             return key;
           }
         }
+      }
+      return null;
+    }
+
+    // ── Custom mappings (user-defined, checked before FIELD_MAP) ─────────────
+    const customMappings: Array<{ pattern: string; value: string }> =
+      (profile as any).custom_mappings ?? [];
+
+    function matchCustom(label: string): string | null {
+      const n = norm(label);
+      for (const { pattern, value } of customMappings) {
+        if (n.includes(norm(pattern))) return value;
       }
       return null;
     }
@@ -287,6 +300,18 @@ export async function fillForm(page: Page, profile: Profile): Promise<FillResult
 
       const el = field as HTMLInputElement;
       const rawLabel = extractFieldLabel(field);
+
+      // Custom mapping takes priority over everything else
+      const customValue = matchCustom(rawLabel);
+      if (customValue !== null) {
+        let ok = false;
+        if (field.tagName === "SELECT") ok = fillNativeSelect(field as HTMLSelectElement, customValue);
+        else if (field.getAttribute("role") === "combobox") ok = fillReactSelect(el, customValue);
+        else ok = fillText(el as any, customValue);
+        filled.push({ label: rawLabel, key: "__custom__", status: ok ? "filled" : "failed" });
+        continue;
+      }
+
       const key = mapFieldLabel(rawLabel);
 
       // Unmapped combobox/select with question-like label → unique question

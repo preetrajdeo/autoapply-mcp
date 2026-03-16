@@ -66,6 +66,32 @@ export async function saveUserProfile(input: z.infer<typeof saveProfileSchema>) 
   };
 }
 
+// ── save_field_mapping ────────────────────────────────────────────────────────
+
+export const saveFieldMappingSchema = z.object({
+  session_id: z.string().describe("Your API key"),
+  pattern: z.string().describe("Label text to match (e.g. 'us citizen', 'located in san francisco bay area')"),
+  value: z.string().describe("Answer to always fill for this field (e.g. 'Yes', 'No', 'San Francisco')"),
+});
+
+export async function saveFieldMapping(input: z.infer<typeof saveFieldMappingSchema>) {
+  const profile = loadProfile(input.session_id) ?? {};
+  const mappings: Array<{ pattern: string; value: string }> =
+    (profile.custom_mappings as any) ?? [];
+
+  // Update existing pattern or add new
+  const idx = mappings.findIndex(m => m.pattern.toLowerCase() === input.pattern.toLowerCase());
+  if (idx >= 0) mappings[idx].value = input.value;
+  else mappings.push({ pattern: input.pattern, value: input.value });
+
+  saveProfile(input.session_id, { ...profile, custom_mappings: mappings });
+  return {
+    success: true,
+    message: `Saved: "${input.pattern}" → "${input.value}". Total custom mappings: ${mappings.length}.`,
+    all_mappings: mappings,
+  };
+}
+
 // ── get_profile ───────────────────────────────────────────────────────────────
 
 export const getProfileSchema = z.object({
