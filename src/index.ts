@@ -3,8 +3,9 @@
 // Compatible with Claude Desktop, Claude Code, and Claude.ai connectors.
 
 import express from "express";
+import { randomUUID } from "crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import {
   openJobApplicationSchema, openJobApplication,
@@ -154,41 +155,65 @@ function createMcpServer(): McpServer {
   return server;
 }
 
-// ── Express + SSE transport ───────────────────────────────────────────────────
+// ── Express + Streamable HTTP transport ──────────────────────────────────────
 
 const app = express();
 app.use(express.json());
 
-// Health check (Railway uses this)
+// Health check
 app.get("/health", (_req, res) => res.json({ status: "ok", name: "AutoApply MCP" }));
 
-// One SSE connection per client
-const transports: Record<string, SSEServerTransport> = {};
+// Session store
+const sessions: Record<string, StreamableHTTPServerTransport> = {};
+
+// Single /mcp endpoint handles GET (SSE stream) + POST (messages) + DELETE (close)
+app.all("/mcp", async (req, res) => {
+  // Reuse existing session if provided
+  const sessionId = req.headers["mcp-session-id"] as string | undefined;
+
+  if (req.method === "POST" && !sessionId) {
+    // New session — only on initialize
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+      onsessioninitialized: (id) => { sessions[id] = transport; },
+    });
+    transport.onclose = () => {
+      if (transport.sessionId) delete sessions[transport.sessionId];
+    };
+    const server = createMcpServer();
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
+    return;
+  }
+
+  if (sessionId && sessions[sessionId]) {
+    await sessions[sessionId].handleRequest(req, res, req.body);
+    return;
+  }
+
+  res.status(400).json({ error: "Bad request" });
+});
+
+// Legacy SSE endpoint so mcp-remote still works
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+const sseTransports: Record<string, SSEServerTransport> = {};
 
 app.get("/sse", async (req, res) => {
+  res.setHeader("X-Accel-Buffering", "no");
   const transport = new SSEServerTransport("/messages", res);
   const server    = createMcpServer();
-  transports[transport.sessionId] = transport;
-
-  res.on("close", () => {
-    delete transports[transport.sessionId];
-  });
-
+  sseTransports[transport.sessionId] = transport;
+  res.on("close", () => { delete sseTransports[transport.sessionId]; });
   await server.connect(transport);
 });
 
 app.post("/messages", async (req, res) => {
-  const sessionId  = req.query.sessionId as string;
-  const transport  = transports[sessionId];
-  if (!transport) {
-    res.status(404).json({ error: "Session not found" });
-    return;
-  }
+  const transport = sseTransports[req.query.sessionId as string];
+  if (!transport) { res.status(404).json({ error: "Session not found" }); return; }
   await transport.handlePostMessage(req, res);
 });
 
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
 app.listen(PORT, () => {
   console.log(`AutoApply MCP server running on port ${PORT}`);
-  console.log(`SSE endpoint: http://localhost:${PORT}/sse`);
 });
