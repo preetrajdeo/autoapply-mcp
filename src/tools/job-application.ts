@@ -3,7 +3,7 @@
 
 import { z } from "zod";
 import { getPage, closePage, screenshot } from "../lib/browser.js";
-import { fillForm, fillAnswer } from "../lib/filler.js";
+import { fillForm, fillAnswer, uploadResumeFiles } from "../lib/filler.js";
 import type { Profile } from "../lib/filler.js";
 
 // ── open_job_application ──────────────────────────────────────────────────────
@@ -38,7 +38,15 @@ export const fillKnownFieldsSchema = z.object({
 
 export async function fillKnownFields(input: z.infer<typeof fillKnownFieldsSchema>) {
   const page = await getPage(input.session_id);
-  const result = await fillForm(page, input.profile as Profile);
+  const profile = input.profile as Profile;
+  const result = await fillForm(page, profile);
+
+  // Upload resume to any file input fields if stored in profile
+  let resumeUploaded = 0;
+  if (profile.resume_file) {
+    resumeUploaded = await uploadResumeFiles(page, profile.resume_file);
+  }
+
   await page.waitForTimeout(500);
   const img = await screenshot(page);
 
@@ -48,10 +56,11 @@ export async function fillKnownFields(input: z.infer<typeof fillKnownFieldsSchem
   return {
     success: true,
     filled_count: filledCount,
+    resume_uploaded: resumeUploaded > 0,
     failed_fields: failedFields,
     unique_questions: result.uniqueQuestions,
     screenshot_base64: img,
-    message: `Filled ${filledCount} fields. ${(result.uniqueQuestions ?? []).length} questions need your answers.`,
+    message: `Filled ${filledCount} fields${resumeUploaded > 0 ? ", uploaded resume" : ""}. ${(result.uniqueQuestions ?? []).length} questions need your answers.`,
   };
 }
 

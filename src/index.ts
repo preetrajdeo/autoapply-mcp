@@ -23,6 +23,8 @@ import {
   saveFieldMappingSchema,   saveFieldMapping,
 } from "./tools/profile.js";
 
+import { uploadResumeSchema, uploadResume } from "./tools/resume.js";
+
 // ── MCP Server ────────────────────────────────────────────────────────────────
 
 function createMcpServer(): McpServer {
@@ -76,6 +78,18 @@ function createMcpServer(): McpServer {
     { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     async (input) => {
       const result = await saveFieldMapping(input as any);
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "upload_resume",
+    "Upload a PDF resume to auto-populate your profile. " +
+    "Returns what was extracted, what's still missing, and a full summary to confirm before saving.",
+    uploadResumeSchema.shape,
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    async (input) => {
+      const result = await uploadResume(input as any);
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     }
   );
@@ -180,7 +194,7 @@ function createMcpServer(): McpServer {
 
   server.prompt(
     "onboard",
-    "First-time setup: introduces AutoApply and collects your profile + preferences",
+    "First-time setup: upload resume → auto-fill profile → confirm → set preferences",
     {},
     () => ({
       messages: [{
@@ -196,18 +210,14 @@ function createMcpServer(): McpServer {
           text: `Hey! Welcome to **AutoApply** — I handle the tedious work of job applications so you can focus on what matters.
 
 Here's how it works:
-1. You tell me about yourself once — name, email, phone, address, work authorization, and anything else relevant
-2. You paste one job application URL (or a whole batch at once)
-3. I open each one in a real browser, fill all the standard fields automatically, and bring back any open-ended questions for you to answer
-4. You review a screenshot and give the go-ahead
+1. You give me your resume — I pull out everything I can automatically
+2. I ask you for anything the resume didn't have
+3. You confirm what I've got before I save it
+4. You paste job URLs one at a time or in bulk — I fill every form and bring back only the questions that need a personal touch
 
-Before I save your profile, two quick questions:
+**Let's start: drop your resume (PDF) and I'll take it from there.**
 
-**1. Auto-submit** — After I've filled a form and you've answered the open questions, should I submit the application automatically? Or would you prefer to review a final screenshot and explicitly say "submit" each time?
-
-**2. Batch mode** — If you paste multiple job links, should I work through them one by one automatically? Or pause between each application so you can confirm before I move on?
-
-Once you answer those, tell me your details and I'll get everything saved.`,
+Once you share it, I'll call \`upload_resume\`, show you exactly what I extracted, ask for any gaps, and show you a full summary to confirm before anything is saved.`,
         },
       }],
     })

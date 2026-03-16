@@ -3,8 +3,18 @@
 // All heavy lifting runs inside page.evaluate() — same JS, no cross-realm issues.
 
 import { Page } from "playwright";
+import { writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
+
+export interface ResumeFile {
+  filename:       string;
+  content_base64: string;
+  content_type:   string;
+}
 
 export interface Profile {
+  resume_file?: ResumeFile;
   personal?: {
     firstName?: string;
     lastName?: string;
@@ -452,4 +462,22 @@ export async function fillAnswer(page: Page, selector: string, answer: string): 
     field.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
     return true;
   }, { selector, answer });
+}
+
+/** Upload the stored resume to any file input fields on the page. */
+export async function uploadResumeFiles(page: Page, resumeFile: ResumeFile): Promise<number> {
+  const fileInputs = await page.$$('input[type="file"]');
+  if (fileInputs.length === 0) return 0;
+
+  const tmpPath = join(tmpdir(), resumeFile.filename);
+  writeFileSync(tmpPath, Buffer.from(resumeFile.content_base64, "base64"));
+
+  let count = 0;
+  for (const input of fileInputs) {
+    try {
+      await input.setInputFiles(tmpPath);
+      count++;
+    } catch { /* skip hidden/disabled inputs */ }
+  }
+  return count;
 }
