@@ -55,6 +55,12 @@ export const saveProfileSchema = z.object({
     salary: z.object({
       desiredMin: z.string().optional(),
     }).optional(),
+    preferences: z.object({
+      autoSubmit:   z.boolean().optional().default(false)
+        .describe("If true, submit each application automatically without waiting for your approval"),
+      autoContinue: z.boolean().optional().default(false)
+        .describe("If true, move to the next job URL automatically without pausing between applications"),
+    }).optional(),
   }).describe("Your job application profile"),
 });
 

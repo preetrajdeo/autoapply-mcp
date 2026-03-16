@@ -176,6 +176,70 @@ function createMcpServer(): McpServer {
     }
   );
 
+  // ── Prompts ────────────────────────────────────────────────────────────────
+
+  server.prompt(
+    "onboard",
+    "First-time setup: introduces AutoApply and collects your profile + preferences",
+    {},
+    () => ({
+      messages: [{
+        role: "user",
+        content: {
+          type: "text",
+          text: `Hey! I'd like to set up AutoApply.`,
+        },
+      }, {
+        role: "assistant",
+        content: {
+          type: "text",
+          text: `Hey! Welcome to **AutoApply** — I handle the tedious work of job applications so you can focus on what matters.
+
+Here's how it works:
+1. You tell me about yourself once — name, email, phone, address, work authorization, and anything else relevant
+2. You paste one job application URL (or a whole batch at once)
+3. I open each one in a real browser, fill all the standard fields automatically, and bring back any open-ended questions for you to answer
+4. You review a screenshot and give the go-ahead
+
+Before I save your profile, two quick questions:
+
+**1. Auto-submit** — After I've filled a form and you've answered the open questions, should I submit the application automatically? Or would you prefer to review a final screenshot and explicitly say "submit" each time?
+
+**2. Batch mode** — If you paste multiple job links, should I work through them one by one automatically? Or pause between each application so you can confirm before I move on?
+
+Once you answer those, tell me your details and I'll get everything saved.`,
+        },
+      }],
+    })
+  );
+
+  server.prompt(
+    "start_applying",
+    "Kick off a job application session — paste one or more job URLs to begin",
+    {},
+    () => ({
+      messages: [{
+        role: "user",
+        content: {
+          type: "text",
+          text: `I'd like to start applying to jobs.`,
+        },
+      }, {
+        role: "assistant",
+        content: {
+          type: "text",
+          text: `Ready to go! Paste your job application URL(s) — one per line is fine — and I'll get started.
+
+I'll open each one, auto-fill everything from your saved profile, and come back to you with:
+- A screenshot so you can see what was filled
+- Any open-ended questions the form is asking that need a personal answer
+
+If you haven't set up your profile yet, say "onboard me" first and I'll walk you through it.`,
+        },
+      }],
+    })
+  );
+
   return server;
 }
 
