@@ -58,8 +58,28 @@ export const saveProfileSchema = z.object({
   }).describe("Your job application profile"),
 });
 
+// Deep-merge: plain objects are merged recursively; arrays and primitives replace.
+function deepMerge(base: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...base };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v !== undefined && v !== null) {
+      if (
+        typeof v === "object" && !Array.isArray(v) &&
+        typeof result[k] === "object" && result[k] !== null && !Array.isArray(result[k])
+      ) {
+        result[k] = deepMerge(result[k] as Record<string, unknown>, v as Record<string, unknown>);
+      } else {
+        result[k] = v;
+      }
+    }
+  }
+  return result;
+}
+
 export async function saveUserProfile(input: z.infer<typeof saveProfileSchema>) {
-  await saveProfile(input.session_id, input.profile as Record<string, unknown>);
+  const existing = (await loadProfile(input.session_id)) ?? {};
+  const merged = deepMerge(existing, input.profile as Record<string, unknown>);
+  await saveProfile(input.session_id, merged);
   return {
     success: true,
     message: "Profile saved. You can now call fill_known_fields with any job URL.",
