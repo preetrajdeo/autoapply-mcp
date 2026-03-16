@@ -210,7 +210,7 @@ app.get("/sse", async (req, res) => {
 app.post("/messages", async (req, res) => {
   const transport = sseTransports[req.query.sessionId as string];
   if (!transport) { res.status(404).json({ error: "Session not found" }); return; }
-  await transport.handlePostMessage(req, res);
+  await transport.handlePostMessage(req, res, req.body);
 });
 
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
