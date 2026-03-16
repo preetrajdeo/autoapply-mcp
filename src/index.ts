@@ -155,24 +155,43 @@ function createMcpServer(): McpServer {
   return server;
 }
 
-// ── Express + Streamable HTTP transport ──────────────────────────────────────
+// ── Express app ───────────────────────────────────────────────────────────────
 
 const app = express();
-app.use(express.json());
 
-// Health check
+// Health (no body parsing needed)
 app.get("/health", (_req, res) => res.json({ status: "ok", name: "AutoApply MCP" }));
 
-// Session store
+// ── Legacy SSE transport (used by mcp-remote) ─────────────────────────────────
+// Register BEFORE express.json() so SSEServerTransport reads the raw body itself.
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+const sseTransports: Record<string, SSEServerTransport> = {};
+
+app.get("/sse", async (req, res) => {
+  res.setHeader("X-Accel-Buffering", "no");
+  const transport = new SSEServerTransport("/messages", res);
+  const server    = createMcpServer();
+  sseTransports[transport.sessionId] = transport;
+  res.on("close", () => { delete sseTransports[transport.sessionId]; });
+  await server.connect(transport);
+});
+
+app.post("/messages", async (req, res) => {
+  const transport = sseTransports[req.query.sessionId as string];
+  if (!transport) { res.status(404).json({ error: "Session not found" }); return; }
+  await transport.handlePostMessage(req, res); // no parsedBody — reads raw stream
+});
+
+// ── JSON body parsing for all remaining routes ────────────────────────────────
+app.use(express.json());
+
+// ── Streamable HTTP transport (modern MCP protocol) ──────────────────────────
 const sessions: Record<string, StreamableHTTPServerTransport> = {};
 
-// Single /mcp endpoint handles GET (SSE stream) + POST (messages) + DELETE (close)
 app.all("/mcp", async (req, res) => {
-  // Reuse existing session if provided
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
   if (req.method === "POST" && !sessionId) {
-    // New session — only on initialize
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (id) => { sessions[id] = transport; },
@@ -192,25 +211,6 @@ app.all("/mcp", async (req, res) => {
   }
 
   res.status(400).json({ error: "Bad request" });
-});
-
-// Legacy SSE endpoint so mcp-remote still works
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-const sseTransports: Record<string, SSEServerTransport> = {};
-
-app.get("/sse", async (req, res) => {
-  res.setHeader("X-Accel-Buffering", "no");
-  const transport = new SSEServerTransport("/messages", res);
-  const server    = createMcpServer();
-  sseTransports[transport.sessionId] = transport;
-  res.on("close", () => { delete sseTransports[transport.sessionId]; });
-  await server.connect(transport);
-});
-
-app.post("/messages", async (req, res) => {
-  const transport = sseTransports[req.query.sessionId as string];
-  if (!transport) { res.status(404).json({ error: "Session not found" }); return; }
-  await transport.handlePostMessage(req, res, req.body);
 });
 
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
