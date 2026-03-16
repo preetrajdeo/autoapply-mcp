@@ -176,14 +176,16 @@ app.get("/sse", async (req, res) => {
   await server.connect(transport);
 });
 
+// ── JSON body parsing for all remaining routes ────────────────────────────────
+app.use(express.json());
+
 app.post("/messages", async (req, res) => {
   const transport = sseTransports[req.query.sessionId as string];
   if (!transport) { res.status(404).json({ error: "Session not found" }); return; }
-  await transport.handlePostMessage(req, res); // no parsedBody — reads raw stream
+  // Use handleMessage directly with the pre-parsed body to avoid raw-body stream issues
+  await transport.handleMessage(req.body);
+  res.writeHead(202).end("Accepted");
 });
-
-// ── JSON body parsing for all remaining routes ────────────────────────────────
-app.use(express.json());
 
 // ── Streamable HTTP transport (modern MCP protocol) ──────────────────────────
 const sessions: Record<string, StreamableHTTPServerTransport> = {};
