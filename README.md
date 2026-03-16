@@ -35,19 +35,75 @@ Add the following to your `claude_desktop_config.json` (no installation required
 
 Restart Claude Desktop. The AutoApply tools will appear automatically.
 
-### First-time setup (say this to Claude)
+---
+
+### First-time setup — Guided onboarding
+
+Copy and paste the following prompt into a new Claude conversation. Claude will ask you the right questions and save everything automatically.
 
 ```
-Register me for AutoApply, then save my profile:
-  Name: Jane Smith
-  Email: jane@example.com
-  Phone: +1 415 555 0100
-  City: San Francisco, CA
-  Authorized to work in the US: yes
-  Does not require sponsorship
+I want to set up my AutoApply profile. Please guide me through the setup
+process by asking me these questions ONE AT A TIME. Wait for my answer
+before moving on. At the end, call register() to get my session ID, then
+call save_profile() with everything I've told you. Save my session ID in
+this conversation so I can use it to apply to jobs.
+
+Ask me:
+
+PERSONAL INFO
+1. What is your first and last name?
+2. What is your email address?
+3. What is your phone number? (include country code, e.g. +1 415 555 0100)
+4. What city and state do you live in? (and country if not the US)
+5. What is your street address and zip code? (optional — skip if you prefer)
+6. What is your LinkedIn profile URL? (optional)
+7. What is your GitHub profile URL? (optional)
+8. Do you have a portfolio or personal website URL? (optional)
+
+WORK AUTHORIZATION
+9. Are you legally authorized to work in the United States?
+10. Do you now or in the future require visa sponsorship?
+11. Are you open to relocating for a role?
+
+EDUCATION
+12. What is your highest degree and the institution you earned it from?
+    (e.g. "BS Computer Science from UC Berkeley")
+    Do you have any other degrees to add? (repeat until done)
+
+SALARY
+13. What is your minimum acceptable annual salary? (e.g. "$120,000")
+    Type "skip" if you prefer not to set this.
+
+EEOC / DEMOGRAPHICS  (these are optional — all answers are kept private
+and only used to fill EEOC compliance sections on applications)
+14. How do you identify your gender?
+    Options: Woman / Man / Non-binary / Prefer not to say / Decline to self-identify
+15. How do you identify your ethnicity?
+    Options: Hispanic or Latino / White / Black or African American /
+    Native Hawaiian or Pacific Islander / Asian / Native American or
+    Alaska Native / Two or more races / Decline to self-identify
+16. What is your veteran status?
+    Options: I am not a protected veteran / I am a protected veteran /
+    Prefer not to say / Decline to self-identify
+17. Do you have a disability?
+    Options: No, I don't have a disability / Yes, I have a disability /
+    Prefer not to say
+
+CUSTOM QUESTION MAPPINGS
+18. Are there any yes/no or short-answer questions that come up repeatedly
+    on applications that you'd like AutoApply to always answer the same way?
+    Examples:
+      - "Are you located near [City]?" → Yes or No
+      - "Are you a US citizen?" → Yes or No
+      - "How did you hear about this job?" → LinkedIn
+    Tell me each one and I'll save it as a custom mapping.
+    Say "done" when finished.
+
+Once I have all your answers, I'll register you and save your complete
+profile in one go.
 ```
 
-Claude calls `register` once to get your session ID, then `save_profile` to store your info server-side. You only need to do this once.
+You only need to do this once. Your profile is stored server-side and reused for every application.
 
 ### Applying to a job
 
