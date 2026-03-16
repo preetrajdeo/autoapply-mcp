@@ -1,72 +1,131 @@
 # AutoApply MCP
 
-A Claude MCP server that fills job applications automatically using Playwright. Point it at any job URL and it fills the form, handles React-Select dropdowns, and surfaces unique questions for Claude to answer.
+An MCP server that automates job applications using a real browser. Give Claude a job posting URL and it fills the entire form — text fields, dropdowns, work authorization, demographics — and surfaces the open-ended questions for Claude to answer on your behalf.
 
-## How it works
+Live server: https://autoapply-mcp.onrender.com
+GitHub: https://github.com/preetrajdeo/autoapply-mcp
 
-```
-You → Claude → AutoApply MCP → Playwright browser → Job site
-```
+## What it does
 
-1. Claude opens the job URL in a real browser
-2. AutoApply fills all known fields (name, email, phone, dropdowns, work auth, etc.)
-3. Unique open-ended questions are returned to Claude
-4. Claude answers them using context about you and the job
-5. You review a screenshot before submitting
+1. Opens the job application URL in a Playwright-controlled browser
+2. Reads your saved profile (name, email, phone, address, work authorization, demographics, salary)
+3. Auto-fills every field it recognizes, including React-Select dropdowns used by Greenhouse, Lever, and Ashby
+4. Returns the remaining unique/open-ended questions to Claude
+5. Claude generates answers and fills them one by one
+6. You see a screenshot of the completed form before submitting
 
-## Connect to Claude Desktop
+Supported platforms: Greenhouse, Lever, Workday, LinkedIn Easy Apply, and generic HTML forms.
 
-Add this to your `claude_desktop_config.json`:
+---
+
+## Quick Start — Claude Desktop
+
+Add the following to your `claude_desktop_config.json` (no installation required):
 
 ```json
 {
   "mcpServers": {
     "autoapply": {
-      "url": "https://YOUR-RAILWAY-URL/sse"
+      "command": "npx",
+      "args": ["mcp-remote", "https://autoapply-mcp.onrender.com/sse"]
     }
   }
 }
 ```
 
-## Usage in Claude
+Restart Claude Desktop. The AutoApply tools will appear automatically.
+
+### First-time setup (say this to Claude)
 
 ```
-"Fill out this job application for me: https://job-boards.greenhouse.io/..."
+Register me for AutoApply, then save my profile:
+  Name: Jane Smith
+  Email: jane@example.com
+  Phone: +1 415 555 0100
+  City: San Francisco, CA
+  Authorized to work in the US: yes
+  Does not require sponsorship
 ```
 
-Claude will:
-1. Call `register` to get a session ID (first time only)
-2. Call `save_profile` with your info (first time only)
-3. Call `open_job_application` to navigate to the URL
-4. Call `fill_known_fields` to auto-fill everything it can
-5. Answer each unique question and call `fill_answer` for each
-6. Show you a screenshot of the completed form
+Claude calls `register` once to get your session ID, then `save_profile` to store your info server-side. You only need to do this once.
 
-## Available Tools
+### Applying to a job
+
+```
+Apply to this job for me: https://job-boards.greenhouse.io/acme/jobs/12345
+```
+
+Claude will open the URL, fill all standard fields, answer the essay questions, and show you a screenshot of the completed form.
+
+---
+
+## Tools reference
 
 | Tool | Description |
 |------|-------------|
-| `register` | Get a session ID (do once) |
-| `save_profile` | Save your info (do once, update anytime) |
-| `get_profile` | Review your saved profile |
-| `open_job_application` | Navigate to a job URL |
-| `fill_known_fields` | Auto-fill all mapped fields + get unique questions |
-| `fill_answer` | Fill one specific answer by selector |
-| `take_screenshot` | See the current state |
-| `scroll_page` | Scroll to see more fields |
-| `close_session` | Close browser when done |
+| `register` | Get an API key / session ID. Call once before using any other tool. |
+| `save_profile` | Save name, email, phone, address, work authorization, demographics, and salary expectations. Stored server-side, keyed to your session ID. |
+| `get_profile` | Retrieve your saved profile to review or update it. |
+| `save_field_mapping` | Teach AutoApply to auto-answer a recurring question. Provide a label pattern and the answer to always use. Example: pattern `located in san francisco` → `Yes`. |
+| `open_job_application` | Open a job URL in a browser and return a screenshot. Always call this before `fill_known_fields`. |
+| `fill_known_fields` | Auto-fill all mapped fields from your profile. Returns a screenshot and a list of unique questions that still need answers. |
+| `fill_answer` | Fill a specific answer into one field using the CSS selector returned by `fill_known_fields`. Call once per unique question. |
+| `take_screenshot` | Screenshot the current state of the application page. |
+| `scroll_page` | Scroll the page up or down to reveal additional fields. |
+| `close_session` | Close the browser session. Call this after submitting or abandoning an application. |
 
-## Deploy to Railway
+---
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template)
+## Example conversation
 
-1. Fork this repo on GitHub
-2. Connect Railway to your GitHub repo
-3. Railway auto-detects the Dockerfile and deploys
-4. Add a persistent volume at `/data` for profile storage
-5. Your MCP URL will be `https://your-app.railway.app/sse`
+```
+User:   Register me for AutoApply.
 
-## Local development
+Claude: [calls register()] Your session ID is abc-123. Saved.
+
+User:   Save my profile — Preet Rajdeo, preet@example.com, +1 415 555 0199,
+        San Francisco CA, authorized to work in the US, no sponsorship needed.
+
+Claude: [calls save_profile()] Profile saved.
+
+User:   Apply to https://job-boards.greenhouse.io/acme/jobs/99999
+
+Claude: [calls open_job_application()] Opened the page. I can see a form
+        with name, email, phone, resume upload, and three essay questions.
+
+        [calls fill_known_fields()] Filled: name, email, phone, work
+        authorization, gender, ethnicity. Unique questions remaining:
+          1. "Why do you want to work at Acme?"
+          2. "Describe a time you solved a hard problem."
+
+        [calls fill_answer() twice] Filled both essay responses.
+
+        Here is a screenshot of the completed form. Please review and
+        submit when ready.
+```
+
+---
+
+## Self-hosting
+
+### Docker
+
+```bash
+docker build -t autoapply-mcp .
+docker run -p 3000:3000 -v /data:/data autoapply-mcp
+```
+
+The server listens on port 3000. Profile data is stored in `/data`.
+
+### Deploy to Render
+
+The repo includes a `render.yaml`. Click "New Web Service" in Render, connect the repo, and deploy. Set a persistent disk at `/data` so profiles survive restarts.
+
+### Deploy to Railway
+
+The repo includes a `Dockerfile` and `railway.json`. Connect the repo in Railway and it deploys automatically. Add a persistent volume at `/data`.
+
+### Local development
 
 ```bash
 npm install
@@ -74,15 +133,42 @@ npx playwright install chromium
 npm run dev
 ```
 
-Server runs at `http://localhost:3000/sse`
+The server starts at `http://localhost:3000`. Point Claude Desktop at `http://localhost:3000/sse` during development.
 
-## What it handles
+### Environment variables
 
-- ✅ Standard text inputs (name, email, phone, etc.)
-- ✅ React-Select v4 dropdowns (Greenhouse, Lever, Ashby)
-- ✅ Phone country code selectors
-- ✅ Work authorization dropdowns
-- ✅ Native `<select>` elements
-- ✅ Textarea / open-ended questions (surfaced for Claude to answer)
-- ✅ "How did you hear" → LinkedIn
-- ✅ "Willing to relocate" → Yes
+No required environment variables. All profile data is stored locally in `/data` as JSON files keyed by session ID.
+
+---
+
+## How it works
+
+```
+Claude Desktop
+     |
+     | MCP (SSE or Streamable HTTP)
+     v
+AutoApply MCP Server  (Express + @modelcontextprotocol/sdk)
+     |
+     | Playwright
+     v
+Real Chromium browser  →  Job application page
+```
+
+The server exposes two MCP transports on the same Express app:
+
+- `/sse` + `/messages` — legacy SSE transport, used by `mcp-remote` and Claude Desktop
+- `/mcp` — modern Streamable HTTP transport for direct connections
+
+Each browser session is isolated by `session_id`. Sessions are created by `open_job_application` and destroyed by `close_session`. Screenshots are returned as base64-encoded PNG images embedded directly in MCP tool responses.
+
+Field filling uses `Object.getOwnPropertyDescriptor` to set React-controlled input values and dispatches synthetic `input`, `change`, and `blur` events so the framework registers the change.
+
+---
+
+## Built with
+
+- TypeScript
+- Express
+- Playwright
+- @modelcontextprotocol/sdk
