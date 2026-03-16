@@ -36,6 +36,7 @@ function createMcpServer(): McpServer {
     "register",
     "Get a new API key / session ID. Call this once before using any other tools.",
     registerSchema.shape,
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     async (input) => {
       const result = await register(input);
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
@@ -47,6 +48,7 @@ function createMcpServer(): McpServer {
     "Save your job application profile (name, email, phone, address, work auth, etc.). " +
     "Stored server-side keyed to your session_id.",
     saveProfileSchema.shape,
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     async (input) => {
       const result = await saveUserProfile(input as any);
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
@@ -57,6 +59,7 @@ function createMcpServer(): McpServer {
     "get_profile",
     "Retrieve your saved profile to review or update it.",
     getProfileSchema.shape,
+    { readOnlyHint: true },
     async (input) => {
       const result = await getUserProfile(input as any);
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
@@ -70,6 +73,7 @@ function createMcpServer(): McpServer {
     "Example: pattern='located in san francisco', value='Yes'. " +
     "Next time fill_known_fields sees that label, it fills it automatically.",
     saveFieldMappingSchema.shape,
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     async (input) => {
       const result = await saveFieldMapping(input as any);
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
@@ -82,6 +86,7 @@ function createMcpServer(): McpServer {
     "Open a job application URL in a browser and return a screenshot. " +
     "Always call this before fill_known_fields.",
     openJobApplicationSchema.shape,
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     async (input) => {
       const result = await openJobApplication(input as any);
       const { screenshot_base64, ...rest } = result;
@@ -99,6 +104,7 @@ function createMcpServer(): McpServer {
     "Auto-fill all mapped fields (name, email, phone, dropdowns, etc.) from your saved profile. " +
     "Returns a screenshot and a list of unique questions that need AI answers.",
     fillKnownFieldsSchema.shape,
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     async (input) => {
       const result = await fillKnownFields(input as any);
       const { screenshot_base64, ...rest } = result;
@@ -116,6 +122,7 @@ function createMcpServer(): McpServer {
     "Fill a specific answer into one field. Use the selector from unique_questions returned by fill_known_fields. " +
     "Call this once per unique question after generating each answer.",
     fillAnswerSchema.shape,
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     async (input) => {
       const result = await fillOneAnswer(input as any);
       const { screenshot_base64, ...rest } = result;
@@ -132,6 +139,7 @@ function createMcpServer(): McpServer {
     "take_screenshot",
     "Take a screenshot of the current state of the job application page.",
     takeScreenshotSchema.shape,
+    { readOnlyHint: true },
     async (input) => {
       const result = await takeScreenshot(input as any);
       return {
@@ -146,6 +154,7 @@ function createMcpServer(): McpServer {
     "scroll_page",
     "Scroll the job application page up or down to reveal more fields.",
     scrollPageSchema.shape,
+    { readOnlyHint: true },
     async (input) => {
       const result = await scrollPage(input as any);
       return {
@@ -160,6 +169,7 @@ function createMcpServer(): McpServer {
     "close_session",
     "Close the browser session when done. Always call this after submitting or abandoning.",
     closeSessionSchema.shape,
+    { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     async (input) => {
       const result = await closeSession(input as any);
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };

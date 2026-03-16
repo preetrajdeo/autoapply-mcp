@@ -1,0 +1,24 @@
+# AutoApply MCP — Smithery configuration
+# https://smithery.ai/docs/concepts/servers
+
+build:
+  dockerBuildPath: ./
+
+startCommand:
+  type: http
+  configSchema:
+    type: object
+    required: []
+    properties:
+      session_id:
+        type: string
+        description: >
+          Your AutoApply API key. If you don't have one yet, leave this blank
+          and call the 'register' tool first — it will generate a key for you.
+        default: ""
+  commandFunction: |
+    (config) => ({
+      command: "node",
+      args: ["dist/index.js"],
+      env: {}
+    })
