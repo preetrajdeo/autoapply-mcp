@@ -10,7 +10,7 @@ export const registerSchema = z.object({});
 
 export async function register(_input: z.infer<typeof registerSchema>) {
   const key = generateApiKey();
-  registerKey(key);
+  await registerKey(key);
   return {
     api_key: key,
     message: "Save this API key — use it as your session_id in all other tools. Call save_profile next.",
@@ -59,7 +59,7 @@ export const saveProfileSchema = z.object({
 });
 
 export async function saveUserProfile(input: z.infer<typeof saveProfileSchema>) {
-  saveProfile(input.session_id, input.profile as Record<string, unknown>);
+  await saveProfile(input.session_id, input.profile as Record<string, unknown>);
   return {
     success: true,
     message: "Profile saved. You can now call fill_known_fields with any job URL.",
@@ -75,7 +75,7 @@ export const saveFieldMappingSchema = z.object({
 });
 
 export async function saveFieldMapping(input: z.infer<typeof saveFieldMappingSchema>) {
-  const profile = loadProfile(input.session_id) ?? {};
+  const profile = (await loadProfile(input.session_id)) ?? {};
   const mappings: Array<{ pattern: string; value: string }> =
     (profile.custom_mappings as any) ?? [];
 
@@ -84,7 +84,7 @@ export async function saveFieldMapping(input: z.infer<typeof saveFieldMappingSch
   if (idx >= 0) mappings[idx].value = input.value;
   else mappings.push({ pattern: input.pattern, value: input.value });
 
-  saveProfile(input.session_id, { ...profile, custom_mappings: mappings });
+  await saveProfile(input.session_id, { ...profile, custom_mappings: mappings });
   return {
     success: true,
     message: `Saved: "${input.pattern}" → "${input.value}". Total custom mappings: ${mappings.length}.`,
@@ -99,7 +99,7 @@ export const getProfileSchema = z.object({
 });
 
 export async function getUserProfile(input: z.infer<typeof getProfileSchema>) {
-  const profile = loadProfile(input.session_id);
+  const profile = await loadProfile(input.session_id);
   if (!profile) {
     return { success: false, message: "No profile found. Call save_profile first." };
   }
